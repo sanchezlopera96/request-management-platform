@@ -1,4 +1,4 @@
-export type ErrorKind = 'NOT_FOUND' | 'CONFLICT' | 'FORBIDDEN';
+export type ErrorKind = 'NOT_FOUND' | 'CONFLICT' | 'FORBIDDEN' | 'BAD_REQUEST' | 'UNAUTHENTICATED';
 
 export abstract class AppError extends Error {
   abstract readonly code: string;
@@ -38,5 +38,32 @@ export class ConcurrentModificationError extends AppError {
     super(
       `La solicitud ${folio} cambió mientras procesabas la acción. Consulta su estado actual e inténtalo de nuevo.`,
     );
+  }
+}
+
+export class TenantNotAssignedError extends AppError {
+  readonly code = 'TENANT_NOT_ASSIGNED';
+  readonly kind = 'FORBIDDEN';
+  constructor(tenantId: string) {
+    super(`No tienes asignada la filial "${tenantId}".`);
+  }
+}
+
+export class ValidationError extends AppError {
+  readonly code = 'VALIDATION_ERROR';
+  readonly kind = 'BAD_REQUEST';
+  constructor(
+    message: string,
+    readonly details?: unknown,
+  ) {
+    super(message);
+  }
+}
+
+export class UnauthenticatedError extends AppError {
+  readonly code = 'UNAUTHENTICATED';
+  readonly kind = 'UNAUTHENTICATED';
+  constructor(message = 'Debes identificarte para usar la Mesa de Solicitudes.') {
+    super(message);
   }
 }
