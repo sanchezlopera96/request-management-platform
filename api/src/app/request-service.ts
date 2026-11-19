@@ -101,7 +101,7 @@ export class RequestService {
     principal: Principal,
     folio: string,
     action: Action,
-    options: { comment?: string; tenantId?: string } = {},
+    options: { tenantId?: string } = {},
   ): Promise<RequestView> {
     const tenantId = resolveTenantScope(principal, options.tenantId);
     const current = await this.load(tenantId, folio);
@@ -124,7 +124,6 @@ export class RequestService {
       toStatus: nextStatus,
       actorId: principal.userId,
       actorRole: principal.role,
-      ...(options.comment ? { comment: options.comment } : {}),
       at: now,
     };
 
