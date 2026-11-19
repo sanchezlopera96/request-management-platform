@@ -1,0 +1,62 @@
+<aside class="detail" aria-labelledby="detail-title">
+  <header class="detail-head">
+    <div>
+      <p class="mono muted">{{ request().folio }}</p>
+      <h2 id="detail-title">{{ request().subject }}</h2>
+    </div>
+    <button type="button" class="icon-btn" aria-label="Cerrar detalle" (click)="closed.emit()">✕</button>
+  </header>
+
+  <dl class="facts">
+    <div><dt>Estado</dt><dd><span class="badge" [attr.data-status]="request().status">{{ statusLabels[request().status] }}</span></dd></div>
+    <div><dt>Categoría</dt><dd>{{ categoryLabels[request().category] }}</dd></div>
+    <div><dt>Creada</dt><dd>{{ request().createdAt | date: 'd MMM y, HH:mm' }}</dd></div>
+    <div><dt>Actualizada</dt><dd>{{ request().updatedAt | date: 'd MMM y, HH:mm' }}</dd></div>
+  </dl>
+
+  <p class="description">{{ request().description }}</p>
+
+  @if (request().availableActions.length > 0) {
+    <section class="actions" aria-label="Acciones">
+      <div class="action-buttons">
+        @for (action of request().availableActions; track action) {
+          <button type="button" class="btn" [class.btn-ghost]="action === 'REJECT'" [disabled]="acting() !== null"
+            (click)="act(action)">
+            {{ acting() === action ? 'Procesando…' : actionLabels[action] }}
+          </button>
+        }
+      </div>
+    </section>
+  } @else if (request().status === 'CLOSED') {
+    <p class="notice">Esta solicitud está cerrada y no admite cambios.</p>
+  }
+
+  @if (actionError(); as message) {
+    <p class="error-text" role="alert">{{ message }}</p>
+  }
+
+  <section aria-label="Historial">
+    <h3>Historial</h3>
+    @if (historyError(); as message) {
+      <p class="error-text" role="alert">{{ message }}
+        <button type="button" class="link" (click)="loadHistory()">Reintentar</button>
+      </p>
+    } @else if (history(); as events) {
+      @if (events.length === 0) {
+        <p class="muted">Esta solicitud se cargó con los datos de volumen y no tiene historial detallado.</p>
+      } @else {
+        <ol class="timeline">
+          @for (e of events; track e.version) {
+            <li>
+              <span class="badge" [attr.data-status]="e.toStatus">{{ statusLabels[e.toStatus] }}</span>
+              <span>{{ actionLabels[e.action] }} · {{ roleLabels[e.actorRole] }} ({{ e.actorId }})</span>
+              <time class="muted" [attr.datetime]="e.at">{{ e.at | date: 'd MMM y, HH:mm' }}</time>
+            </li>
+          }
+        </ol>
+      }
+    } @else {
+      <p class="muted" role="status">Cargando historial…</p>
+    }
+  </section>
+</aside>
