@@ -3,12 +3,13 @@ import type { Principal } from '../app/identity.js';
 export interface DemoTenant {
   id: string;
   name: string;
+  seedCount: number;
 }
 
 export const DEMO_TENANTS: DemoTenant[] = [
-  { id: 'andina', name: 'Filial Andina' },
-  { id: 'caribe', name: 'Filial Caribe' },
-  { id: 'pacifico', name: 'Filial Pacífico' },
+  { id: 'andina', name: 'Filial Andina', seedCount: 50_000 },
+  { id: 'caribe', name: 'Filial Caribe', seedCount: 60 },
+  { id: 'pacifico', name: 'Filial Pacífico', seedCount: 0 },
 ];
 
 export const DEMO_USERS: Principal[] = [

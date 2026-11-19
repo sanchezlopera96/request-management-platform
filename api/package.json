@@ -14,7 +14,9 @@
     "lint": "eslint . && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:int": "vitest run --project integration"
+    "test:int": "vitest run --project integration",
+    "seed": "tsx src/scripts/seed.ts",
+    "bench": "tsx src/scripts/bench.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
