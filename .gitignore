@@ -1,0 +1,20 @@
+# Dependencias y builds
+node_modules/
+dist/
+coverage/
+.angular/
+cdk.out/
+*.tsbuildinfo
+
+# Entorno
+.env
+.env.*
+!.env.example
+
+# Editor / SO
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.log
