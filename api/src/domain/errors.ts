@@ -5,6 +5,7 @@ export abstract class AppError extends Error {
   abstract readonly kind: ErrorKind;
 }
 
+export class RequestNotFoundError extends AppError {
   readonly code = 'REQUEST_NOT_FOUND';
   readonly kind = 'NOT_FOUND';
   constructor() {
@@ -30,6 +31,7 @@ export class RoleNotAllowedError extends AppError {
   readonly kind = 'FORBIDDEN';
 }
 
+export class ConcurrentModificationError extends AppError {
   readonly code = 'CONCURRENT_MODIFICATION';
   readonly kind = 'CONFLICT';
   constructor(folio: string) {
