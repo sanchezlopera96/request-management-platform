@@ -17,7 +17,7 @@ declare module 'fastify' {
 export interface AppDependencies {
   service: RequestService;
   verifier: TokenVerifier;
-  devAuth: { secret: string; issuer: string };
+  devAuth?: { secret: string; issuer: string };
   corsOrigin?: string | boolean;
   logger?: boolean;
 }
@@ -47,16 +47,19 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
 
   app.get('/api/health', async () => ({ status: 'ok' }));
 
-  app.get('/api/dev/users', async () =>
-    DEMO_USERS.map((u) => ({ userId: u.userId, name: u.name, role: u.role })),
-  );
+  const devAuth = deps.devAuth;
+  if (devAuth) {
+    app.get('/api/dev/users', async () =>
+      DEMO_USERS.map((u) => ({ userId: u.userId, name: u.name, role: u.role })),
+    );
 
-  app.post('/api/dev/token', async (request) => {
-    const { userId } = parse(devTokenSchema, request.body);
-    const user = DEMO_USERS.find((u) => u.userId === userId);
-    if (!user) throw new ValidationError(`No existe el usuario de prueba "${userId}".`);
-    return { token: await signDevToken(user, deps.devAuth.secret, deps.devAuth.issuer) };
-  });
+    app.post('/api/dev/token', async (request) => {
+      const { userId } = parse(devTokenSchema, request.body);
+      const user = DEMO_USERS.find((u) => u.userId === userId);
+      if (!user) throw new ValidationError(`No existe el usuario de prueba "${userId}".`);
+      return { token: await signDevToken(user, devAuth.secret, devAuth.issuer) };
+    });
+  }
 
   await app.register(async (secured) => {
     secured.addHook('onRequest', async (request) => {

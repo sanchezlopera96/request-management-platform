@@ -1,4 +1,4 @@
-import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
+import { SignJWT, createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
 import { ROLES, type Role } from '../domain/request.js';
 import { UnauthenticatedError } from '../domain/errors.js';
 import type { Principal } from '../app/identity.js';
@@ -7,8 +7,19 @@ export interface TokenVerifier {
   verify(token: string): Promise<Principal>;
 }
 
+function claim(payload: JWTPayload, name: string): unknown {
+  return payload[name] ?? payload[`custom:${name}`];
+}
+
+function tenantList(value: unknown): string[] {
+  if (Array.isArray(value)) return value.filter((t): t is string => typeof t === 'string');
+  if (typeof value === 'string') return value.split(',').map((t) => t.trim()).filter(Boolean);
+  return [];
+}
+
 export function claimsToPrincipal(payload: JWTPayload): Principal {
-  const { role, tenantId, tenants } = payload as JWTPayload & Record<string, unknown>;
+  const role = claim(payload, 'role');
+  const tenantId = claim(payload, 'tenantId');
 
   if (typeof role !== 'string' || !ROLES.includes(role as Role)) {
     throw new UnauthenticatedError('El token no indica un rol válido.');
@@ -20,29 +31,37 @@ export function claimsToPrincipal(payload: JWTPayload): Principal {
     throw new UnauthenticatedError('El token no identifica al usuario.');
   }
 
-  const assigned = Array.isArray(tenants) ? tenants.filter((t): t is string => typeof t === 'string') : [];
-
   return {
     userId: payload.sub,
     name: typeof payload['name'] === 'string' ? payload['name'] : payload.sub,
     role: role as Role,
     ...(role === 'TENANT_USER' ? { tenantId: tenantId as string } : {}),
-    tenants: role === 'ANALYST' ? assigned : [],
+    tenants: role === 'ANALYST' ? tenantList(claim(payload, 'tenants')) : [],
   };
+}
+
+async function verifyWith(verify: () => Promise<{ payload: JWTPayload }>): Promise<Principal> {
+  let payload: JWTPayload;
+  try {
+    ({ payload } = await verify());
+  } catch {
+    throw new UnauthenticatedError('Tu sesión no es válida o expiró. Vuelve a identificarte.');
+  }
+  return claimsToPrincipal(payload);
 }
 
 export function createHmacVerifier(secret: string, issuer: string): TokenVerifier {
   const key = new TextEncoder().encode(secret);
   return {
-    async verify(token) {
-      let payload: JWTPayload;
-      try {
-        ({ payload } = await jwtVerify(token, key, { issuer, algorithms: ['HS256'] }));
-      } catch {
-        throw new UnauthenticatedError('Tu sesión no es válida o expiró. Vuelve a identificarte.');
-      }
-      return claimsToPrincipal(payload);
-    },
+    verify: (token) => verifyWith(() => jwtVerify(token, key, { issuer, algorithms: ['HS256'] })),
+  };
+}
+
+export function createJwksVerifier(jwksUrl: string, issuer: string, audience?: string): TokenVerifier {
+  const jwks = createRemoteJWKSet(new URL(jwksUrl));
+  return {
+    verify: (token) =>
+      verifyWith(() => jwtVerify(token, jwks, { issuer, algorithms: ['RS256'], ...(audience ? { audience } : {}) })),
   };
 }
 

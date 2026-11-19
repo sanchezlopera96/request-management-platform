@@ -18,3 +18,10 @@ cdk.out/
 .DS_Store
 Thumbs.db
 *.log
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log

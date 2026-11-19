@@ -5,7 +5,7 @@ import type { RequestRepository } from './app/ports.js';
 import { InMemoryRequestRepository } from './infra/memory-request-repository.js';
 import { DynamoRequestRepository } from './infra/dynamodb/dynamo-request-repository.js';
 import { createDynamoClients } from './infra/dynamodb/client.js';
-import { createHmacVerifier } from './http/auth.js';
+import { createHmacVerifier, createJwksVerifier } from './http/auth.js';
 import type { AppDependencies } from './http/app.js';
 
 export function createDependencies(config: AppConfig): AppDependencies {
@@ -17,11 +17,22 @@ export function createDependencies(config: AppConfig): AppDependencies {
           config.tableName,
         );
 
-  return {
+  const common = {
     service: new RequestService(repository, new CursorCodec(config.cursorSecret)),
-    verifier: createHmacVerifier(config.jwtSecret, config.jwtIssuer),
-    devAuth: { secret: config.jwtSecret, issuer: config.jwtIssuer },
     corsOrigin: config.corsOrigin,
     logger: config.logger,
+  };
+
+  if (config.auth.mode === 'jwks') {
+    return {
+      ...common,
+      verifier: createJwksVerifier(config.auth.jwksUrl, config.auth.issuer, config.auth.audience),
+    };
+  }
+
+  return {
+    ...common,
+    verifier: createHmacVerifier(config.auth.secret, config.auth.issuer),
+    devAuth: { secret: config.auth.secret, issuer: config.auth.issuer },
   };
 }
