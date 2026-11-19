@@ -51,7 +51,6 @@ export interface RequestEvent {
   toStatus: Status;
   actorId: string;
   actorRole: Role;
-  comment?: string;
   at: string;
 }
 

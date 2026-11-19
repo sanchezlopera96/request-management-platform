@@ -52,7 +52,7 @@ describe('RequestService', () => {
 
       await service.applyAction(analystA, folio, 'START', scope);
       await service.applyAction(analystA, folio, 'RESOLVE', scope);
-      const rejected = await service.applyAction(userA, folio, 'REJECT', { comment: 'Falta el soporte' });
+      const rejected = await service.applyAction(userA, folio, 'REJECT');
       expect(rejected.status).toBe('IN_PROGRESS');
       await service.applyAction(analystA, folio, 'RESOLVE', scope);
       const closed = await service.applyAction(userA, folio, 'CONFIRM');
@@ -67,7 +67,7 @@ describe('RequestService', () => {
         'IN_PROGRESS>RESOLVED',
         'RESOLVED>CLOSED',
       ]);
-      expect(history[3]).toMatchObject({ action: 'REJECT', comment: 'Falta el soporte', actorRole: 'TENANT_USER' });
+      expect(history[3]).toMatchObject({ action: 'REJECT', actorRole: 'TENANT_USER' });
     });
   });
 
