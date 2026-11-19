@@ -8,9 +8,10 @@ import {
   type Status,
 } from '../domain/request.js';
 import { INITIAL_STATUS, availableActions, transition } from '../domain/state-machine.js';
-import { RequestNotFoundError, ValidationError } from '../domain/errors.js';
+import { RequestNotFoundError } from '../domain/errors.js';
 import { resolveTenantScope, type Principal } from './identity.js';
-import type { PageKey, RequestRepository } from './ports.js';
+import type { CursorCodec } from './cursor.js';
+import type { RequestRepository } from './ports.js';
 
 export const DEFAULT_PAGE_SIZE = 25;
 export const MAX_PAGE_SIZE = 100;
@@ -37,39 +38,23 @@ export interface CreateInput {
   category: Category;
 }
 
-function encodeCursor(key: PageKey): string {
-  return Buffer.from(JSON.stringify(key)).toString('base64url');
-}
-
-function decodeCursor(cursor: string): PageKey {
-  let key: unknown;
-  try {
-    key = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
-  } catch {
-    key = null;
-  }
-  if (typeof key !== 'object' || key === null) {
-    throw new ValidationError('El cursor de paginación no es válido. Vuelve a consultar desde la primera página.');
-  }
-  return key as PageKey;
-}
-
 export class RequestService {
   constructor(
     private readonly repository: RequestRepository,
+    private readonly cursors: CursorCodec,
     private readonly clock: () => Date = () => new Date(),
   ) {}
 
   async list(principal: Principal, input: ListInput = {}): Promise<ListOutput> {
     const tenantId = resolveTenantScope(principal, input.tenantId);
     const limit = Math.min(Math.max(input.limit ?? DEFAULT_PAGE_SIZE, 1), MAX_PAGE_SIZE);
-    const startKey = input.cursor ? decodeCursor(input.cursor) : undefined;
+    const startKey = input.cursor ? this.cursors.decode(input.cursor, tenantId, input.status) : undefined;
 
     const page = await this.repository.list(tenantId, { status: input.status, limit, startKey });
 
     return {
       items: page.items.map((request) => this.toView(request, principal)),
-      nextCursor: page.lastKey ? encodeCursor(page.lastKey) : null,
+      nextCursor: page.lastKey ? this.cursors.encode(tenantId, input.status, page.lastKey) : null,
     };
   }
 
