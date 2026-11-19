@@ -67,3 +67,11 @@ export class UnauthenticatedError extends AppError {
     super(message);
   }
 }
+
+export class InvalidCursorError extends AppError {
+  readonly code = 'INVALID_CURSOR';
+  readonly kind = 'BAD_REQUEST';
+  constructor() {
+    super('El cursor de paginación no es válido. Vuelve a consultar desde la primera página.');
+  }
+}

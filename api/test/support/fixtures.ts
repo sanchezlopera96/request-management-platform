@@ -8,6 +8,8 @@ export const userB: Principal = { userId: 'user-b', name: 'Usuario B', role: 'TE
 
 export const analystA: Principal = { userId: 'analyst-a', name: 'Analista A', role: 'ANALYST', tenants: [TENANT_A] };
 
+export const CURSOR_SECRET = 'test-cursor-secret-0123456789';
+
 export const sampleInput = {
   subject: 'Pago a proveedor',
   description: 'Factura 123 pendiente de pago',

@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { RequestService } from '../../src/app/request-service.js';
+import { CursorCodec } from '../../src/app/cursor.js';
 import { InMemoryRequestRepository } from '../../src/infra/memory-request-repository.js';
 import {
   ConcurrentModificationError,
+  InvalidCursorError,
   InvalidTransitionError,
   RequestClosedError,
   RequestNotFoundError,
@@ -10,7 +12,7 @@ import {
   TenantNotAssignedError,
   ValidationError,
 } from '../../src/domain/errors.js';
-import { TENANT_A, TENANT_B, analystA, sampleInput, userA, userB } from '../support/fixtures.js';
+import { CURSOR_SECRET, TENANT_A, TENANT_B, analystA, sampleInput, userA, userB } from '../support/fixtures.js';
 
 describe('RequestService', () => {
   let repository: InMemoryRequestRepository;
@@ -18,7 +20,7 @@ describe('RequestService', () => {
 
   beforeEach(() => {
     repository = new InMemoryRequestRepository();
-    service = new RequestService(repository);
+    service = new RequestService(repository, new CursorCodec(CURSOR_SECRET));
   });
 
   describe('creación', () => {
@@ -190,8 +192,20 @@ describe('RequestService', () => {
       expect(inProgress.items.map((r) => r.folio)).toEqual(['SOL-000005', 'SOL-000003']);
     });
 
-    it('un cursor ilegible se rechaza con un mensaje claro', async () => {
-      await expect(service.list(userA, { cursor: 'basura' })).rejects.toThrow(ValidationError);
+    it('un cursor de otra filial, de otro filtro o alterado se rechaza', async () => {
+      const page = await service.list(userA, { limit: 2 });
+      const cursor = page.nextCursor!;
+
+      await service.create(userB, sampleInput);
+      await expect(service.list(userB, { cursor })).rejects.toThrow(InvalidCursorError);
+      await expect(service.list(userA, { cursor, status: 'CLOSED' })).rejects.toThrow(InvalidCursorError);
+      await expect(service.list(userA, { cursor: `${cursor}x` })).rejects.toThrow(InvalidCursorError);
+      await expect(service.list(userA, { cursor: 'basura' })).rejects.toThrow(InvalidCursorError);
+    });
+
+    it('un cursor fabricado por el cliente, sin la firma del servidor, se rechaza', async () => {
+      const forgedBody = Buffer.from(JSON.stringify({ t: TENANT_A, s: null, k: { folio: 'SOL-000004' } })).toString('base64url');
+      await expect(service.list(userA, { cursor: `${forgedBody}.firma-inventada` })).rejects.toThrow(InvalidCursorError);
     });
 
     it('expone las acciones disponibles según el rol', async () => {
