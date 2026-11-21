@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  api:
+    name: API · lint y pruebas
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    services:
+      dynamodb:
+        image: amazon/dynamodb-local:3.3.2
+        ports:
+          - 8000:8000
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - run: npm ci
+      - name: Lint y tipos
+        run: npm run lint
+      - name: Pruebas unitarias
+        run: npx vitest run --project unit
+      - name: Pruebas de integración contra DynamoDB Local
+        run: npx vitest run --project integration
+        env:
+          DYNAMODB_ENDPOINT: http://localhost:8000
+      - name: Build
+        run: npm run build
+
+  web:
+    name: Web · lint, pruebas y build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Pruebas en Chrome headless
+        run: npm run test:ci
+      - name: Build de producción
+        run: npm run build
+
+  infra:
+    name: Infra · Terraform
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v5
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.15.8
+          terraform_wrapper: false
+      - name: Formato
+        run: terraform fmt -check -recursive
+      - name: Init
+        run: terraform init -backend=false -input=false
+      - name: Validate
+        run: terraform validate
+      - name: Pruebas con provider simulado
+        run: terraform test
+      - name: Plan sin cuenta de AWS
+        run: terraform plan -input=false -lock=false -refresh=false -var offline_plan=true
+        env:
+          AWS_ACCESS_KEY_ID: offline
+          AWS_SECRET_ACCESS_KEY: offline
+
+  docker:
+    name: Docker · compose e imágenes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Validar docker-compose.yml
+        run: docker compose config --quiet
+      - name: Construir imágenes (sin publicar)
+        run: docker compose build

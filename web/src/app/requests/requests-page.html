@@ -1,0 +1,100 @@
+<section class="toolbar" aria-label="Filtros">
+  <div class="chips" role="group" aria-label="Filtrar por estado">
+    <button type="button" class="chip" [class.active]="status() === null" [attr.aria-pressed]="status() === null"
+      (click)="setStatus(null)">Todas</button>
+    @for (s of statuses; track s) {
+      <button type="button" class="chip" [class.active]="status() === s" [attr.aria-pressed]="status() === s"
+        (click)="setStatus(s)">
+        <span class="dot" [attr.data-status]="s"></span>{{ statusLabels[s] }}
+      </button>
+    }
+  </div>
+
+  <form class="search" role="search" (submit)="search($event)">
+    <label for="folio-search" class="sr-only">Buscar por folio</label>
+    <input id="folio-search" type="search" placeholder="Buscar folio, p. ej. SOL-000123" autocomplete="off"
+      [value]="searchText()" (input)="onSearchInput($event)" />
+    <button type="submit" class="btn" [disabled]="searching()">{{ searching() ? 'Buscando…' : 'Buscar' }}</button>
+  </form>
+</section>
+
+@if (searchMessage(); as message) {
+  <p class="notice" role="status">{{ message }}</p>
+}
+
+<div class="layout" [class.with-detail]="selected()">
+  <section class="list" aria-live="polite">
+    @switch (phase()) {
+      @case ('loading') {
+        <div class="state" role="status">
+          <span class="spinner" aria-hidden="true"></span>
+          <p>Cargando solicitudes…</p>
+        </div>
+      }
+      @case ('error') {
+        <div class="state state-error" role="alert">
+          <p class="state-title">No pudimos cargar las solicitudes</p>
+          <p>{{ error() }}</p>
+          <button type="button" class="btn" (click)="reload()">Reintentar</button>
+        </div>
+      }
+      @case ('ready') {
+        @if (items().length === 0) {
+          <div class="state">
+            <p class="state-title">Sin resultados</p>
+            <p>{{ emptyMessage() }}</p>
+            @if (status()) {
+              <button type="button" class="btn btn-ghost" (click)="setStatus(null)">Ver todas</button>
+            }
+          </div>
+        } @else {
+          <div class="table-wrap">
+            <table>
+              <caption class="sr-only">Solicitudes de la filial</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Folio</th>
+                  <th scope="col">Asunto</th>
+                  <th scope="col" class="hide-sm hide-detail">Categoría</th>
+                  <th scope="col">Estado</th>
+                  <th scope="col" class="hide-sm">Actualizada</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (r of items(); track r.folio) {
+                  <tr [class.selected]="selected()?.folio === r.folio">
+                    <td>
+                      <button type="button" class="link mono" (click)="selected.set(r)">{{ r.folio }}</button>
+                    </td>
+                    <td class="subject">{{ r.subject }}</td>
+                    <td class="hide-sm hide-detail">{{ categoryLabels[r.category] }}</td>
+                    <td><span class="badge" [attr.data-status]="r.status">{{ statusLabels[r.status] }}</span></td>
+                    <td class="hide-sm muted date">{{ r.updatedAt | date: 'dd/MM/yy HH:mm' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <div class="pager">
+            <span class="muted">Mostrando {{ items().length }} solicitudes</span>
+            @if (loadMoreError(); as message) {
+              <span class="error-text" role="alert">{{ message }}</span>
+            }
+            @if (nextCursor()) {
+              <button type="button" class="btn btn-ghost" [disabled]="loadingMore()" (click)="loadMore()">
+                {{ loadingMore() ? 'Cargando…' : loadMoreError() ? 'Reintentar' : 'Cargar más' }}
+              </button>
+            } @else {
+              <span class="muted">No hay más solicitudes.</span>
+            }
+          </div>
+        }
+      }
+    }
+  </section>
+
+  @if (selected(); as request) {
+    <app-request-detail [request]="request" (updated)="onUpdated($event)" (closed)="selected.set(null)" />
+  }
+</div>

@@ -1,0 +1,68 @@
+<header class="topbar">
+  <div class="brand">
+    <span class="logo" aria-hidden="true">◆</span>
+    <div>
+      <h1>Mesa de Solicitudes</h1>
+      <p class="muted">Centro de servicios compartidos</p>
+    </div>
+  </div>
+
+  @if (session.me(); as me) {
+    <div class="identity">
+      @if (session.isAnalyst()) {
+        <label class="field">
+          <span>Filial</span>
+          <select [value]="session.activeTenant()?.id" (change)="onTenantChange($event)">
+            @for (t of me.tenants; track t.id) {
+              <option [value]="t.id">{{ t.name }}</option>
+            }
+          </select>
+        </label>
+      } @else {
+        <span class="tenant-pill">{{ session.activeTenant()?.name }}</span>
+      }
+      <label class="field">
+        <span>{{ roleLabels[me.role] }}</span>
+        <select [value]="me.userId" [disabled]="signingIn()" (change)="onUserChange($event)">
+          @for (u of users(); track u.userId) {
+            <option [value]="u.userId">{{ u.name }}</option>
+          }
+        </select>
+      </label>
+    </div>
+  }
+</header>
+
+<main class="container">
+  @if (!ready()) {
+    <div class="state" role="status"><span class="spinner" aria-hidden="true"></span><p>Preparando…</p></div>
+  } @else if (session.me()) {
+    @if (error(); as message) {
+      <p class="error-text" role="alert">{{ message }}</p>
+    }
+    <app-requests-page />
+  } @else {
+    <section class="welcome">
+      <h2>Consulta el estado de tus solicitudes</h2>
+      <p>
+        Entorno de demostración: elige un usuario de prueba. Cada usuario de filial solo ve las solicitudes de su
+        filial; la analista atiende las filiales que tiene asignadas.
+      </p>
+      @if (error(); as message) {
+        <div class="state state-error" role="alert">
+          <p>{{ message }}</p>
+          <button type="button" class="btn" (click)="retry()">Reintentar</button>
+        </div>
+      } @else {
+        <div class="user-grid">
+          @for (u of users(); track u.userId) {
+            <button type="button" class="user-card" [disabled]="signingIn()" (click)="signIn(u.userId)">
+              <strong>{{ u.name }}</strong>
+              <span class="muted">{{ roleLabels[u.role] }}</span>
+            </button>
+          }
+        </div>
+      }
+    </section>
+  }
+</main>
